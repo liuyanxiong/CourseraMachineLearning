@@ -1,0 +1,70 @@
+---
+title: "Coursera Machine Learning"
+author: "Liu Yanxiong"
+date: "Tuesday, June 16, 2015"
+output: html_document
+---
+
+##**Read Data**
+  
+  We first setup the working directory and loading the data
+```{r}
+setwd("C:/Users/USER/Desktop/Assignment/MachineLearning")
+train<-read.csv("pml-training.csv")
+test<-read.csv("pml-testing.csv")
+```
+##**Load the "caret" and partition the data**
+  
+  We then using the **caret** package to partition the data for training and cross validation
+```{r} 
+library(caret)
+set.seed(123456)
+trainset <- createDataPartition(train$classe, p = 0.8, list = FALSE)
+Training <- train[trainset, ]
+Validation <- train[-trainset, ]
+```
+##**Preliminary data cleaning
+  
+  We clean up the the columns with mission values, near zero variance and descriptive data for better machine training experience 
+```{r}
+nzvcol <- nearZeroVar(Training)
+Training <- Training[, -nzvcol]
+cntlength <- sapply(Training, function(x) {sum(!(is.na(x) | x == ""))})
+nullcol <- names(cntlength[cntlength < 0.6 * length(Training$classe)])
+descriptcol <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", 
+                  "cvtd_timestamp", "new_window", "num_window")
+excludecols <- c(descriptcol, nullcol)
+```
+
+##**Data Training**
+  
+  We then carrying out data training using random forest
+```{r}
+Training <- Training[, !names(Training) %in% excludecols]
+library(randomForest)
+rfModel <- randomForest(classe ~ ., data = Training, importance = TRUE, ntrees = 10)
+```
+##**Validation**
+  
+  Model validation within the training set
+```{r}
+library("e1071")
+ptraining <- predict(rfModel, Training)
+print(confusionMatrix(ptraining, Training$classe))
+```
+  
+  Model validtion out of the trainig set
+```{r}
+pvalidation <- predict(rfModel, Validation)
+print(confusionMatrix(pvalidation, Validation$classe))
+```
+  
+  As we can see from the above two tables, the model works well for the validation
+
+##**Set prediction**
+  
+  The following provides with the result on prediction
+```{r}
+ptest <- predict(rfModel, test)
+ptest
+```
